@@ -1,47 +1,32 @@
-USE ROLE ACCOUNTADMIN;
 
-CREATE OR ALTER WAREHOUSE QUICKSTART_WH 
-  WAREHOUSE_SIZE = XSMALL 
-  AUTO_SUSPEND = 300 
-  AUTO_RESUME= TRUE;
-
+USE ROLE SYSADMIN;
 
 -- Separate database for git repository
-CREATE OR ALTER DATABASE QUICKSTART_COMMON;
+-- Create a database for the metadata
+CREATE OR ALTER DATABASE DATAOPS_DB;
 
+-- Git repository object is similar to external stage (this is a trick to get access to the files)
+CREATE OR REPLACE GIT REPOSITORY DATAOPS_DB.PUBLIC.DATAOPS_REPO
+API_INTEGRATION = GIT_INTEGRATION_REEVES
+ORIGIN = 'https://github.com/reeves-ah/snowflake-devops';
 
--- API integration is needed for GitHub integration
-CREATE OR REPLACE API INTEGRATION git_api_integration
-  API_PROVIDER = git_https_api
-  API_ALLOWED_PREFIXES = ('https://github.com/<insert GitHub username>') -- INSERT YOUR GITHUB USERNAME HERE
-  ENABLED = TRUE;
-
-
--- Git repository object is similar to external stage
-CREATE OR REPLACE GIT REPOSITORY quickstart_common.public.quickstart_repo
-  API_INTEGRATION = git_api_integration
-  ORIGIN = '<insert URL of forked GitHub repo>'; -- INSERT URL OF FORKED REPO HERE
-
-
-CREATE OR ALTER DATABASE QUICKSTART_PROD;
-
-
--- To monitor data pipeline's completion
-CREATE OR REPLACE NOTIFICATION INTEGRATION email_integration
-  TYPE=EMAIL
-  ENABLED=TRUE;
-
+-- Create a database for the data
+CREATE OR ALTER DATABASE REEVES_DB;
 
 -- Database level objects
-CREATE OR ALTER SCHEMA bronze;
-CREATE OR ALTER SCHEMA silver;
-CREATE OR ALTER SCHEMA gold;
+CREATE OR ALTER SCHEMA REEVES_DB.BRONZE;
+CREATE OR ALTER SCHEMA REEVES_DB.SILVER;
+CREATE OR ALTER SCHEMA REEVES_DB.GOLD;
 
 
 -- Schema level objects
-CREATE OR REPLACE FILE FORMAT bronze.json_format TYPE = 'json';
-CREATE OR ALTER STAGE bronze.raw;
+CREATE OR REPLACE FILE FORMAT BRONZE.JSON_FORMAT TYPE = 'json';
+CREATE OR ALTER STAGE BRONZE.RAW; -- Internal Stage
 
 
 -- Copy file from GitHub to internal stage
-copy files into @bronze.raw from @quickstart_common.public.quickstart_repo/branches/main/data/airport_list.json;
+COPY FILES INTO @REEVES_DB.BRONZE.RAW 
+FROM @DATAOPS_DB.PUBLIC.DATAOPS_REPO/branches/main/data/airport_list.json;
+
+
+
